@@ -4,19 +4,19 @@
 import argparse
 import logging
 from pyctools.core.compound import Compound
-import pyctools.components.io.plotdata
+import pyctools.components.photo.canon_100d
 import pyctools.components.photo.infergamma
 import pyctools.components.io.imagefilepil
+import pyctools.components.io.plotdata
 import pyctools.components.io.rawimagefilereader
-import pyctools.components.photo.canon_100d
 
 class Network(object):
     components = \
 {   'cg': {   'class': 'pyctools.components.photo.canon_100d.CanonGamma',
-              'config': "{'out_vals': '  1, 30, 57, 80, "
-                        "99,126,147,175,203,226,242,253,255,256', "
-                        "'in_vals': '  0,  5, 10, 15, 20, 30, 40, 60, "
-                        "90,130,175,225,250,275', 'smooth': True}",
+              'config': "{'smooth': True, 'in_vals': '  0,  5, 10, 15, 20, "
+                        "30, 40, 60, 90,130,175,225,250,275', 'out_vals': "
+                        "'  1, 30, 57, 80, "
+                        "99,126,147,175,203,226,242,253,255,256'}",
               'pos': (250.0, 200.0)},
     'ifrpil': {   'class': 'pyctools.components.io.imagefilepil.ImageFileReaderPIL',
                   'config': "{'path': "
@@ -39,7 +39,7 @@ class Network(object):
 {   ('cg', 'function'): [('pd', 'input')],
     ('ifrpil', 'output'): [('ig', 'corr_in')],
     ('ig', 'function'): [('pd0', 'input')],
-    ('rifr', 'output'): [('ig', 'linear_in'), ('cg', 'input')]}
+    ('rifr', 'output'): [('cg', 'input'), ('ig', 'linear_in')]}
 
     def make(self):
         comps = {}
@@ -48,6 +48,9 @@ class Network(object):
         return Compound(linkages=self.linkages, **comps)
 
 if __name__ == '__main__':
+    from PyQt5 import QtCore, QtWidgets
+    QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_X11InitThreads)
+    app = QtWidgets.QApplication([])
 
     comp = Network().make()
     cnf = comp.get_config()
@@ -61,11 +64,7 @@ if __name__ == '__main__':
     cnf.parser_set(args)
     comp.set_config(cnf)
     comp.start()
-
-    try:
-        comp.join(end_comps=True)
-    except KeyboardInterrupt:
-        pass
+    app.exec_()
 
     comp.stop()
     comp.join()
