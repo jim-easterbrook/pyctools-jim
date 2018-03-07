@@ -49,21 +49,35 @@ class InferGamma(Component):
             y_value = numpy.empty_like(func_data[0])
             idx = 0
             for i in range(func_data[0].shape[0]):
-                while idx < lin_sort.shape[0] and lin_sort[idx] <= func_data[0][i]:
+                while idx < lin_sort.shape[0] and lin_sort[idx] < func_data[0][i]:
                     idx += 1
+                lo = idx - 1
+                hi = idx
+                while hi < lin_sort.shape[0] and lin_sort[hi] <= func_data[0][i]:
+                    hi += 1
+                # lo points to highest value that is lower than target
+                # hi points to lowest value that is greater than target
+                if hi - lo > 1:
+                    # move to middle of multiple duplicate values
+                    adj = (hi - lo) // 2
+                    lo += adj
+                    hi -= adj
                 x_points = []
                 y_points = []
-                if idx > 0:
-                    x_points.append(lin_sort[idx - 1])
-                    y_points.append(cor_sort[idx - 1])
-                if idx < lin_sort.shape[0]:
-                    x_points.append(lin_sort[idx])
-                    y_points.append(cor_sort[idx])
+                if lo >= 0:
+                    x_points.append(lin_sort[lo])
+                    y_points.append(cor_sort[lo])
+                if hi > lo and hi < lin_sort.shape[0]:
+                    x_points.append(lin_sort[hi])
+                    y_points.append(cor_sort[hi])
                 y_value[i] = y_points[0]
                 if len(x_points) == 2:
                     # linear interp
-                    alpha = ((func_data[0][i] - x_points[0]) /
-                                 (x_points[1] - x_points[0]))
+                    if x_points[1] == x_points[0]:
+                        alpha = 0.5
+                    else:
+                        alpha = ((func_data[0][i] - x_points[0]) /
+                                     (x_points[1] - x_points[0]))
                     y_value[i] += alpha * (y_points[1] - y_points[0])
                 print(x_points[0], y_points[0])
             func_data.append(y_value)
