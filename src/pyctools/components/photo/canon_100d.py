@@ -29,6 +29,6 @@ def CanonGamma(config={}, **kwds):
     100D camera. See also
     pyctools.components.colourspace.gammacorrection.PiecewiseGammaCorrect"""
     return PiecewiseGammaCorrect(
-        in_vals= '  0,  5, 10, 15, 20, 30, 40, 60, 90,130,175,225,250,275',
-        out_vals='  1, 30, 57, 80, 99,126,147,175,203,226,242,253,255,256',
+        in_vals= '0,  5, 10, 15, 20, 30, 40, 60, 90,130,170,210,250,270',
+        out_vals='0, 30, 56, 80, 99,126,147,176,204,226,240,250,256,257',
         smooth=True, config=config, **kwds)
