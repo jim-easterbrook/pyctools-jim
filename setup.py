@@ -22,33 +22,16 @@ import os
 from setuptools import setup
 import sys
 
+from pyctools.setup import find_packages, write_init_files
+
 version = '0.1.0'
 
 # find packages
-packages = ['pyctools']
-for root, dirs, files in os.walk('src/pyctools'):
-    package = '.'.join(root.split(os.sep)[1:])
-    for name in dirs:
-        packages.append(package + '.' + name)
+packages = find_packages()
+print(packages)
 
 # make sure each package is a "namespace package"
-init_text = """__import__('pkg_resources').declare_namespace(__name__)
-
-try:
-    from .__doc__ import __doc__
-except ImportError:
-    pass
-"""
-for package in packages:
-    path = os.path.join('src', package.replace('.', os.sep), '__init__.py')
-    if os.path.exists(path):
-        with open(path) as f:
-            old_text = f.read()
-    else:
-        old_text = ''
-    if old_text != init_text:
-        with open(path, 'w') as f:
-            f.write(init_text)
+write_init_files(packages)
 
 with open('README.rst') as f:
     long_description = f.read()
@@ -78,7 +61,6 @@ setup(name = 'pyctools.jim',
       license = 'GNU GPL',
       platforms = ['POSIX', 'MacOS'],
       packages = packages,
-      namespace_packages = packages,
       package_dir = {'' : 'src'},
       install_requires = ['pyctools.core'],
       zip_safe = False,
