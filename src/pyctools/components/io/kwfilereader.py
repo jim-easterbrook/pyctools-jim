@@ -157,10 +157,18 @@ class KWFileReader(Component):
                 return
             self.frame_type = header.code
             metadata = Metadata()
-            audit = 'data = KWFileReader({})\n'.format(
-                os.path.basename(path))
+            audit = '{} =\n'.format(os.path.basename(path))
+            indent = 0
             for line in audit_lines:
-                audit += line + '\n'
+                if line[0] == '{':
+                    indent += 1
+                    audit = audit[:-1] + ' {\n'
+                    line = line[1:]
+                if line:
+                    audit += ('    ' * indent) + line + '\n'
+                if '}' in line:
+                    indent -= 1
+            audit += 'data = KWFileReader({})\n'.format(os.path.basename(path))
             audit += self.config.audit_string()
             metadata.set('audit', audit)
             yield metadata
@@ -173,7 +181,7 @@ class KWFileReader(Component):
                 data = numpy.frombuffer(raw_data, numpy.int8)
                 if header.comps != 2:
                     # Y & RGB have 128 offset
-                    data = data + 128
+                    data = data.astype(pt_float) + pt_float(128.0)
                 if header.data_type == DataTypes.ps_tng_KW:
                     data = data.reshape((header.len_y, header.len_x, -1))
                 else:
