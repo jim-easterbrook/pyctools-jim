@@ -52,7 +52,7 @@ PicFile = namedtuple('PicFile',
 PicFile_fmt = '23i80s4sii'
 
 
-class DataTypes(enum.IntEnum):
+class DataTypes(enum.Enum):
     ps_tng_KW = 0
     ps_tng_REAL = 1
     ps_tng_BITPIPE = 2
@@ -81,10 +81,6 @@ class KWFileReader(Component):
         self.config['looping'] = ConfigEnum(choices=('off', 'repeat', 'reverse'))
 
     def on_start(self):
-##        self.metadata = Metadata().from_file(path)
-##        audit = self.metadata.get('audit')
-##        audit += 'data = %s\n' % path
-##        self.metadata.set('audit', audit)
         # create file reader
         self.frame_no = 0
         self.generator = self.file_reader()
@@ -117,41 +113,53 @@ class KWFileReader(Component):
             preamble = pf.read(1)
             if preamble[0] == 16:
                 # KW picture file
+                big_endian = False
                 header, audit_lines = self.read_kw_header(pf)
+                shape = header.len_y, header.len_x, header.comps
             else:
                 preamble += pf.read(7)
                 if preamble == b'PIC-PIPE':
                     # big endian pic pipe
-                    count = int.from_bytes(
-                        pf.read(4), byteorder='big', signed=True)
-                    pf.read(4)
-                    header_struct = struct.Struct('>' + PicFile_fmt)
-                    header = PicFile(*header_struct.unpack(pf.read(count - 4)))
-                    header = header._replace(
-                        pic_name=header.pic_name.decode('ascii').strip('\0'),
-                        code=header.code.decode('ascii').strip('\0'),
-                        data_type=DataTypes(header.data_type))
-                    audit_lines = []
-                    while True:
-                        count = int.from_bytes(
-                            pf.read(4), byteorder='big', signed=True)
-                        if count == 0:
-                            break
-                        audit_lines.append(pf.read(80)[:count].decode('ascii'))
+                    big_endian = True
+                elif preamble == b'PIC-pipe':
+                    # small endian pic pipe
+                    big_endian = False
                 else:
                     print('Unrecognised header', preamble)
                     return
+                # read header
+                count = int.from_bytes(
+                    pf.read(4), byteorder=('little', 'big')[big_endian],
+                    signed=True)
+                pf.read(4)
+                header_struct = struct.Struct(
+                    ('<', '>')[big_endian] + PicFile_fmt)
+                header = PicFile(*header_struct.unpack(pf.read(count - 4)))
+                header = header._replace(
+                    pic_name=header.pic_name.decode('ascii').strip('\0'),
+                    code=header.code.decode('ascii').strip('\0'),
+                    data_type=DataTypes(header.data_type))
+                shape = header.len_y, header.comps, header.len_x
+                # read audit trail
+                audit_lines = []
+                while True:
+                    count = int.from_bytes(
+                        pf.read(4), byteorder=('little', 'big')[big_endian],
+                        signed=True)
+                    if count == 0:
+                        break
+                    audit_lines.append(pf.read(80)[:count].decode('ascii'))
+            print(header)
             if header.interleave != 1:
                 print('Cannot read interleave', header.interleave)
                 return
             if header.data_type == DataTypes.ps_tng_KW:
                 bytes_per_sample = (((header.over_bits + 7) // 8)
                                     + 1 + ((header.acc_bits + 7) // 8))
-                if bytes_per_sample != 1:
-                    print('Cannot read KW', bytes_per_sample, 'byte samples')
-                    return
             elif header.data_type == DataTypes.ps_tng_BYTE:
                 bytes_per_sample = 1
+            elif header.data_type == DataTypes.ps_tng_SHORT:
+                bytes_per_sample = 2
             else:
                 print('Cannot read', header.data_type.name)
                 return
@@ -178,15 +186,23 @@ class KWFileReader(Component):
             for z in range(header.len_z):
                 raw_data = pf.read(bytes_per_frame)
                 # convert to numpy array
-                data = numpy.frombuffer(raw_data, numpy.int8)
+                if bytes_per_sample == 1:
+                    dtype = 'i1'
+                elif bytes_per_sample == 2:
+                    dtype = ('<i2', '>i2')[big_endian]
+                else:
+                    print('Cannot read', bytes_per_sample, 'byte samples')
+                    return
+                data = numpy.ndarray(shape=shape, dtype=dtype, buffer=raw_data)
+                if shape[-1] != header.comps:
+                    # pic pipe data is in (y, c, x) order
+                    data = numpy.swapaxes(data, 1, 2)
+                if header.precision > 0:
+                    data = (data.astype(pt_float)
+                            / pt_float(2 ** header.precision))
                 if header.comps != 2:
                     # Y & RGB have 128 offset
                     data = data.astype(pt_float) + pt_float(128.0)
-                if header.data_type == DataTypes.ps_tng_KW:
-                    data = data.reshape((header.len_y, header.len_x, -1))
-                else:
-                    data = data.reshape((header.len_y, -1, header.len_x))
-                    data = numpy.swapaxes(data, 1, 2)
                 yield data
             
     def read_kw_header(self, pf):
@@ -275,5 +291,6 @@ class KWFileReader(Component):
                 break
             else:
                 print('Unrecognised KW tag', tag1)
+        header['precision'] = ((header['acc_bits'] + 7) // 8) * 8
         header = PicFile(**header)
         return header, audit
