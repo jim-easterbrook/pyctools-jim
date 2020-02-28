@@ -64,11 +64,13 @@ class DataTypes(enum.Enum):
 class KWFileReader(Component):
     """Read "Kingswood picture files".
 
+    This component reads a subset of the very flexible "Kingswood
+    picture file" format used from the 1980s on at BBC Research.
+
     ===========  ===  ====
     Config
     ===========  ===  ====
     ``path``     str  Path name of file to be read.
-    ``looping``  str  Whether to play continuously. Can be ``'off'``, ``'repeat'`` or ``'reverse'``.
     ===========  ===  ====
 
     """
@@ -78,29 +80,18 @@ class KWFileReader(Component):
 
     def initialise(self):
         self.config['path'] = ConfigPath()
-        self.config['looping'] = ConfigEnum(choices=('off', 'repeat', 'reverse'))
 
     def on_start(self):
         # create file reader
         self.frame_no = 0
         self.generator = self.file_reader()
-        # get metadata
-        try:
-            self.metadata = next(self.generator)
-        except StopIteration:
-            self.stop()
 
     def process_frame(self):
-        try:
-            data = next(self.generator)
-        except StopIteration:
-            self.stop()
-            return
         frame = self.outframe_pool['output'].get()
+        frame.data = next(self.generator)
         frame.metadata.copy(self.metadata)
         frame.frame_no = self.frame_no
         self.frame_no += 1
-        frame.data = data
         frame.type = self.frame_type
         self.send('output', frame)
 
@@ -164,7 +155,7 @@ class KWFileReader(Component):
                 print('Cannot read', header.data_type.name)
                 return
             self.frame_type = header.code
-            metadata = Metadata()
+            self.metadata = Metadata()
             audit = '{} =\n'.format(os.path.basename(path))
             indent = 0
             for line in audit_lines:
@@ -178,8 +169,7 @@ class KWFileReader(Component):
                     indent -= 1
             audit += 'data = KWFileReader({})\n'.format(os.path.basename(path))
             audit += self.config.audit_string()
-            metadata.set('audit', audit)
-            yield metadata
+            self.metadata.set('audit', audit)
             # read data
             bytes_per_frame = (header.len_y * header.len_x
                                * header.comps * bytes_per_sample)
