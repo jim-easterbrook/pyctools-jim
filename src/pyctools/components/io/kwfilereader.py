@@ -107,6 +107,7 @@ class KWFileReader(Component):
                 big_endian = False
                 header, audit_lines = self.read_kw_header(pf)
                 shape = header.len_y, header.len_x, header.comps
+                swap_axes = False
             else:
                 preamble += pf.read(7)
                 if preamble == b'PIC-PIPE':
@@ -131,6 +132,7 @@ class KWFileReader(Component):
                     code=header.code.decode('ascii').strip('\0'),
                     data_type=DataTypes(header.data_type))
                 shape = header.len_y, header.comps, header.len_x
+                swap_axes = True
                 # read audit trail
                 audit_lines = []
                 while True:
@@ -156,15 +158,14 @@ class KWFileReader(Component):
                 return
             self.frame_type = header.code
             self.metadata = Metadata()
-            audit = '{} =\n'.format(os.path.basename(path))
+            audit = '{} = '.format(os.path.basename(path))
             indent = 0
             for line in audit_lines:
                 if line[0] == '{':
                     indent += 1
-                    audit = audit[:-1] + ' {\n'
-                    line = line[1:]
-                if line:
-                    audit += ('    ' * indent) + line + '\n'
+                if audit[-1] == '\n':
+                    audit += ('    ' * indent)
+                audit += line + '\n'
                 if '}' in line:
                     indent -= 1
             audit += 'data = KWFileReader({})\n'.format(os.path.basename(path))
@@ -184,7 +185,7 @@ class KWFileReader(Component):
                     print('Cannot read', bytes_per_sample, 'byte samples')
                     return
                 data = numpy.ndarray(shape=shape, dtype=dtype, buffer=raw_data)
-                if shape[-1] != header.comps:
+                if swap_axes:
                     # pic pipe data is in (y, c, x) order
                     data = numpy.swapaxes(data, 1, 2)
                 if header.precision > 0:
