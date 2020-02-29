@@ -153,6 +153,8 @@ class KWFileReader(Component):
                 bytes_per_sample = 1
             elif header.data_type == DataTypes.ps_tng_SHORT:
                 bytes_per_sample = 2
+            elif header.data_type == DataTypes.ps_tng_REAL:
+                bytes_per_sample = 4
             else:
                 print('Cannot read', header.data_type.name)
                 return
@@ -177,7 +179,9 @@ class KWFileReader(Component):
             for z in range(header.len_z):
                 raw_data = pf.read(bytes_per_frame)
                 # convert to numpy array
-                if bytes_per_sample == 1:
+                if header.data_type == DataTypes.ps_tng_REAL:
+                    dtype = ('<f4', '>f4')[big_endian]
+                elif bytes_per_sample == 1:
                     dtype = 'i1'
                 elif bytes_per_sample == 2:
                     dtype = ('<i2', '>i2')[big_endian]
