@@ -27,7 +27,7 @@ import struct
 
 import numpy
 
-from pyctools.core.config import ConfigPath, ConfigEnum
+from pyctools.core.config import ConfigBool, ConfigPath
 from pyctools.core.base import Component
 from pyctools.core.frame import Metadata
 from pyctools.core.types import pt_float
@@ -67,11 +67,12 @@ class KWFileReader(Component):
     This component reads a subset of the very flexible "Kingswood
     picture file" format used from the 1980s on at BBC Research.
 
-    ===========  ===  ====
+    ===========  ====  ====
     Config
-    ===========  ===  ====
-    ``path``     str  Path name of file to be read.
-    ===========  ===  ====
+    ===========  ====  ====
+    ``path``     str   Path name of file to be read.
+    ``noaudit``  bool  Don't output file's "audit trail" metadata.
+    ===========  ====  ====
 
     """
 
@@ -80,6 +81,7 @@ class KWFileReader(Component):
 
     def initialise(self):
         self.config['path'] = ConfigPath()
+        self.config['noaudit'] = ConfigBool()
 
     def on_start(self):
         # create file reader
@@ -160,16 +162,19 @@ class KWFileReader(Component):
                 return
             self.frame_type = header.code
             self.metadata = Metadata()
-            audit = '{} = '.format(os.path.basename(path))
-            indent = 0
-            for line in audit_lines:
-                if line[0] == '{':
-                    indent += 1
-                if audit[-1] == '\n':
-                    audit += ('    ' * indent)
-                audit += line + '\n'
-                if '}' in line:
-                    indent -= 1
+            if self.config['noaudit']:
+                audit = ''
+            else:
+                audit = '{} = '.format(os.path.basename(path))
+                indent = 0
+                for line in audit_lines:
+                    if line[0] == '{':
+                        indent += 1
+                    if audit[-1] == '\n':
+                        audit += ('    ' * indent)
+                    audit += line + '\n'
+                    if '}' in line:
+                        indent -= 1
             audit += 'data = KWFileReader({})\n'.format(os.path.basename(path))
             audit += self.config.audit_string()
             self.metadata.set('audit', audit)
