@@ -18,50 +18,8 @@
 #  along with this program.  If not, see
 #  <http://www.gnu.org/licenses/>.
 
-import os
 from setuptools import setup
-import sys
 
-from pyctools.setup import find_packages, write_init_files
+from pyctools.setup import get_setup_parameters
 
-version = '0.1.0'
-
-# find packages
-packages = find_packages()
-print(packages)
-
-# make sure each package is a "namespace package"
-write_init_files(packages)
-
-with open('README.rst') as f:
-    long_description = f.read()
-url = 'https://github.com/jim-easterbrook/pyctools-jim'
-
-setup(name = 'pyctools.jim',
-      version = version,
-      author = 'Jim Easterbrook',
-      author_email = 'jim@jim-easterbrook.me.uk',
-      url = url,
-      description = 'Miscellaneous Pyctools components',
-      long_description = long_description,
-      classifiers = [
-          'Development Status :: 3 - Alpha',
-          'Intended Audience :: Developers',
-          'Intended Audience :: Science/Research',
-          'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
-          'Operating System :: OS Independent',
-          'Programming Language :: Python :: 2',
-          'Programming Language :: Python :: 2.7',
-          'Programming Language :: Python :: 3',
-          'Topic :: Multimedia :: Graphics',
-          'Topic :: Multimedia :: Video',
-          'Topic :: Scientific/Engineering :: Image Recognition',
-          'Topic :: Scientific/Engineering :: Visualization',
-          ],
-      license = 'GNU GPL',
-      platforms = ['POSIX', 'MacOS'],
-      packages = packages,
-      package_dir = {'' : 'src'},
-      install_requires = ['pyctools.core'],
-      zip_safe = False,
-      )
+setup(**get_setup_parameters())

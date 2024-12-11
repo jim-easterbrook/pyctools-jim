@@ -59,6 +59,3 @@ target/
 # Documentation output
 /src/doc/api/
 /doc/
-
-# Misc
-__init__.py
